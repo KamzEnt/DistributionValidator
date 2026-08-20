@@ -18,102 +18,47 @@ namespace DistributionValidator.Tests
       _service = new DistributionStatusService(_repository);
     }
 
-    [Test]
-    public async Task GetStatusCompletedAsync_ShouldReturnDustributionStatus()
+    [TestCase("C101", "2026-01", "COMPLETED", 5000)]
+    [TestCase("C102", "2026-02", "PENDING", 5500)]
+    [TestCase("C103", "2026-03", "FAILED", 5600)]
+    public async Task GetStatusAsync_ShouldReturnDistributionStatus(string clientId, string period, string status, decimal distributedAmount)
     {
       // Arrange
       var expectedDistribution = new DistributionStatus
       {
-        ClientId = "C101",
-        Period = "2026-04",
-        Status = "COMPLETED",
-        DistributedAmount = 7840.00m
+        ClientId = clientId,
+        Period = period,
+        Status = status,
+        DistributedAmount = distributedAmount
       };
 
-      _repository.GetDistributionAsync("C101", "2026-04").Returns(expectedDistribution);
+      _repository.GetDistributionAsync(clientId, period).Returns(expectedDistribution);
 
       // Act
-      var result = await _service.GetStatusAsync("C101", "2026-04");
+      var result = await _service.GetStatusAsync(clientId, period);
 
       // Assert
-      await _repository.Received(1).GetDistributionAsync("C101", "2026-04");
       Assert.Multiple(() =>
       {
-        Assert.That(result?.Status, Is.EqualTo("COMPLETED"));
-        Assert.That(result?.DistributedAmount, Is.EqualTo(7840.00m));
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Status, Is.EqualTo(status));
+        Assert.That(result.DistributedAmount, Is.EqualTo(distributedAmount));
       });
+      await _repository.Received(1).GetDistributionAsync(clientId, period);
     }
 
-    [Test]
-    public async Task GetStatusPendingAsync_ShouldReturnDustributionStatus()
-    {
-      // Arrange
-      var expectedDistribution = new DistributionStatus
-      {
-        ClientId = "C102",
-        Period = "2026-05",
-        Status = "PENDING",
-        DistributedAmount = 7840.00m
-      };
-
-      _repository.GetDistributionAsync("C102", "2026-05").Returns(expectedDistribution);
-
-      // Act
-      var result = await _service.GetStatusAsync("C102", "2026-05");
-
-      // Assert
-      await _repository.Received(1).GetDistributionAsync("C102", "2026-05");
-      Assert.Multiple(() =>
-      {
-        Assert.That(result?.Status, Is.EqualTo("PENDING"));
-        Assert.That(result?.DistributedAmount, Is.EqualTo(7840.00m));
-      });
-    }
-
-    [Test]
-    public async Task GetStatusFailedAsync_ShouldReturnDustributionStatus()
-    {
-      // Arrange
-      var expectedDistribution = new DistributionStatus
-      {
-        ClientId = "C102",
-        Period = "2026-05",
-        Status = "FAILED",
-        DistributedAmount = 7840.00m
-      };
-
-      _repository.GetDistributionAsync("C102", "2026-05").Returns(expectedDistribution);
-
-      // Act
-      var result = await _service.GetStatusAsync("C102", "2026-05");
-
-      // Assert
-      await _repository.Received(1).GetDistributionAsync("C102", "2026-05");
-      Assert.Multiple(() =>
-      {
-        Assert.That(result?.Status, Is.EqualTo("FAILED"));
-        Assert.That(result?.DistributedAmount, Is.EqualTo(7840.00m));
-      });
-    }
-
-    [Test]
-    public void EmptyPeriod_ShouldThrowArgumentException()
+    [TestCase("C101", "")]
+    [TestCase("", "2026-04")]
+    public void GetStatusAstnc_ShouldRejectMissingData(string clientId, string period)
     {
       // Act & Assert
-      Assert.ThrowsAsync<ArgumentException>(async () => await _service.GetStatusAsync("C101", ""));
+      Assert.ThrowsAsync<ArgumentException>(async () => await _service.GetStatusAsync(clientId, period));
       _repository.DidNotReceive().GetDistributionAsync(Arg.Any<string>(),Arg.Any<string>());
-    }
-
-    [Test]
-    public void EmptyClientId_ShouldThrowArgumentException()
-    {
-      // Act & Assert
-      Assert.ThrowsAsync<ArgumentException>(async () => await _service.GetStatusAsync("", "2026-04"));
-      _repository.DidNotReceive().GetDistributionAsync(Arg.Any<string>(), Arg.Any<string>());
     }
 
     [TestCase("April-2026")]
     [TestCase("2026-13")]
+    [TestCase("2026/10")]
     [TestCase("26-13")]
     public void GetStatusAsync_ShouldRejectInvalidPeriodFormat(string period)
     {
